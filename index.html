@@ -237,6 +237,10 @@ body{font-family:'Manjari',sans-serif;color:var(--white);-webkit-font-smoothing:
 /* Confirm modal */
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;z-index:998;opacity:0;pointer-events:none;transition:opacity .25s;}
 #modal.show{opacity:1;pointer-events:all;}
+#pin-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .25s;}
+#pin-modal.show{opacity:1;pointer-events:all;}
+#pin-modal .modal-box{transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);}
+#pin-modal.show .modal-box{transform:translateY(0);}
 .modal-box{background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px calc(24px + var(--safe-bot));width:100%;max-width:430px;transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);}
 #modal.show .modal-box{transform:translateY(0);}
 .modal-title{font-size:17px;font-weight:700;margin-bottom:8px;}
@@ -486,6 +490,21 @@ body{font-family:'Manjari',sans-serif;color:var(--white);-webkit-font-smoothing:
   </div>
 </div>
 
+<div id="pin-modal">
+  <div class="modal-box">
+    <div class="modal-title" id="pin-modal-title">Masukkan PIN</div>
+    <div class="modal-sub" id="pin-modal-sub"></div>
+    <div class="field">
+      <input type="tel" id="pin-input" placeholder="4 digit PIN" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="text-align:center;font-size:22px;letter-spacing:.4em;">
+      <div class="field-helper" id="pin-error" style="color:var(--pink);display:none;"></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-pink" id="pin-confirm-btn">Lanjut</button>
+      <button class="btn btn-outline" onclick="hidePinModal()" style="margin-top:8px;">Batal</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getDatabase, ref, set, get, push, remove, update, onValue }
@@ -665,16 +684,84 @@ function buildPickGrid(data) {
   const grid = document.getElementById('pick-grid');
   grid.innerHTML = data.members.map(m => {
     const isTaken = taken[m] && m !== myName;
-    return `<div class="mpick ${isTaken ? 'taken' : ''}" onclick="${isTaken ? '' : `pickMember('${m}')`}" style="border-color:${pColor(m,data.members)}20;">
+    return `<div class="mpick ${isTaken ? 'taken' : ''}" onclick="startPickMember('${m}')" style="border-color:${pColor(m,data.members)}20;">
       <div class="pdot" style="background:${pColor(m,data.members)}"></div>
       <span>${m}</span>
     </div>`;
   }).join('');
 }
 
-async function pickMember(name) {
+// ── PIN modal helpers ──
+let pinModalState = null; // { mode: 'set' | 'verify', name }
+function showPinModal(mode, name) {
+  pinModalState = { mode, name };
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').style.display = 'none';
+  if (mode === 'set') {
+    document.getElementById('pin-modal-title').textContent = 'Buat PIN untuk ' + name;
+    document.getElementById('pin-modal-sub').textContent = 'Biar cuma kamu yang bisa masuk pakai nama ini nanti. Isi 4 digit angka (opsional, boleh dikosongkan lalu tekan Lanjut).';
+    document.getElementById('pin-confirm-btn').textContent = 'Simpan & Lanjut';
+  } else {
+    document.getElementById('pin-modal-title').textContent = 'Masuk sebagai ' + name;
+    document.getElementById('pin-modal-sub').textContent = 'Nama ini sudah pernah dipakai. Masukkan PIN untuk membuktikan ini kamu.';
+    document.getElementById('pin-confirm-btn').textContent = 'Masuk';
+  }
+  document.getElementById('pin-modal').classList.add('show');
+  setTimeout(() => document.getElementById('pin-input').focus(), 200);
+}
+function hidePinModal() {
+  document.getElementById('pin-modal').classList.remove('show');
+  pinModalState = null;
+}
+window.hidePinModal = hidePinModal;
+
+function showPinError(msg) {
+  const el = document.getElementById('pin-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+document.getElementById('pin-confirm-btn').addEventListener('click', async () => {
+  if (!pinModalState) return;
+  const { mode, name } = pinModalState;
+  const val = document.getElementById('pin-input').value.trim();
+  if (val && !/^\d{4}$/.test(val)) { showPinError('PIN harus 4 digit angka'); return; }
+
+  if (mode === 'set') {
+    hidePinModal();
+    await finalizePickMember(name, val || null);
+  } else {
+    // verify
+    const snap = await get(ref(db, 'trips/' + trip.code + '/pins/' + name));
+    const savedPin = snap.exists() ? snap.val() : null;
+    if (!savedPin) {
+      // legacy claim with no PIN ever set — allow reclaim, then let them set one now
+      hidePinModal();
+      showPinModal('set', name);
+      return;
+    }
+    if (val !== savedPin) { showPinError('PIN salah, coba lagi'); return; }
+    hidePinModal();
+    await finalizePickMember(name, savedPin);
+  }
+});
+
+function startPickMember(name) {
+  const taken = (trip && trip.takenBy) || {};
+  if (taken[name] && name !== myName) {
+    showPinModal('verify', name);
+  } else {
+    showPinModal('set', name);
+  }
+}
+window.startPickMember = startPickMember;
+
+async function finalizePickMember(name, pin) {
   myName = name;
   await update(ref(db, 'trips/' + trip.code + '/takenBy'), { [name]: true });
+  if (pin) {
+    await update(ref(db, 'trips/' + trip.code + '/pins'), { [name]: pin });
+  }
   if (!trip.members.includes(name)) {
     trip.members.push(name);
     await set(ref(db, 'trips/' + trip.code + '/members'), trip.members);
@@ -683,7 +770,6 @@ async function pickMember(name) {
   addToHistory(trip);
   checkAndShowBank();
 }
-window.pickMember = pickMember;
 
 // ── Enter Trip ──
 function enterTrip() {
