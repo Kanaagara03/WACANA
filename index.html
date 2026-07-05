@@ -566,8 +566,13 @@ window.hideModal = hideModal;
 // ── Screen nav ──
 function go(id) {
   const cur = document.querySelector('.screen:not(.gone):not(.back)');
-  if (cur && cur.id !== id) { cur.classList.add('back'); screenHistory.push(cur.id); }
-  document.querySelectorAll('.screen').forEach(s => { if (s.id !== id && !s.classList.contains('back')) s.classList.add('gone'); });
+  document.querySelectorAll('.screen').forEach(s => {
+    if (s.id === id) return;
+    if (cur && s.id === cur.id) return;
+    s.classList.add('gone');
+    s.classList.remove('back');
+  });
+  if (cur && cur.id !== id) { cur.classList.remove('gone'); cur.classList.add('back'); screenHistory.push(cur.id); }
   const next = document.getElementById(id);
   next.classList.remove('gone','back');
   if (id === 's-bank') setTimeout(prefillBankForm, 50);
