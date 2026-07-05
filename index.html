@@ -42,9 +42,8 @@ body{font-family:'Manjari',sans-serif;color:var(--white);-webkit-font-smoothing:
 .sb-icons{font-size:12px;font-weight:600;display:flex;gap:6px;}
 
 #screens{flex:1;overflow:hidden;position:relative;}
-.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--black);transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s ease;-webkit-overflow-scrolling:touch;padding-bottom:32px;}
-.screen.gone{transform:translateX(100%);pointer-events:none;}
-.screen.back{transform:translateX(-6%);opacity:.4;pointer-events:none;}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--black);-webkit-overflow-scrolling:touch;padding-bottom:32px;}
+.screen.gone{display:none;}
 
 .nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 10px;background:var(--black);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
 .nav-title{font-size:17px;font-weight:700;color:var(--white);text-align:center;flex:1;}
@@ -136,8 +135,8 @@ body{font-family:'Manjari',sans-serif;color:var(--white);-webkit-font-smoothing:
 .member-pick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .mpick{display:flex;align-items:center;gap:8px;padding:13px 14px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;transition:all .15s;background:var(--surface);}
 .mpick:active{transform:scale(.97);}
-.mpick.taken{opacity:.35;cursor:not-allowed;}
-.mpick.taken::after{content:'Sudah diambil';font-size:10px;color:var(--silver);margin-left:auto;font-weight:400;}
+.mpick.taken{opacity:.55;cursor:pointer;}
+.mpick.taken::after{content:'Sudah diambil · masuk pakai PIN';font-size:10px;color:var(--silver);margin-left:auto;font-weight:400;}
 
 /* Bill cards */
 .bill-card{background:var(--surface);border-radius:14px;padding:14px;margin-bottom:10px;border:1px solid var(--border);}
@@ -540,6 +539,19 @@ function pColor(name, members) {
   return PCOLORS[idx % PCOLORS.length];
 }
 
+function isHost() {
+  if (!trip) return false;
+  const host = trip.hostName || trip.members[0];
+  return myName === host;
+}
+window.isHost = isHost;
+
+function isValidMemberName(name) {
+  // Names get inserted into onclick="fn('name')" attributes throughout the app.
+  // Quote characters would break that HTML/JS, so reject them at the source.
+  return !/['"\\]/.test(name);
+}
+
 // ── Clock ──
 function tick() {
   const n = new Date();
@@ -565,16 +577,11 @@ window.hideModal = hideModal;
 
 // ── Screen nav ──
 function go(id) {
-  const cur = document.querySelector('.screen:not(.gone):not(.back)');
-  document.querySelectorAll('.screen').forEach(s => {
-    if (s.id === id) return;
-    if (cur && s.id === cur.id) return;
-    s.classList.add('gone');
-    s.classList.remove('back');
-  });
-  if (cur && cur.id !== id) { cur.classList.remove('gone'); cur.classList.add('back'); screenHistory.push(cur.id); }
+  const cur = document.querySelector('.screen:not(.gone)');
+  if (cur && cur.id !== id) screenHistory.push(cur.id);
+  document.querySelectorAll('.screen').forEach(s => { if (s.id !== id) s.classList.add('gone'); });
   const next = document.getElementById(id);
-  next.classList.remove('gone','back');
+  next.classList.remove('gone');
   if (id === 's-bank') setTimeout(prefillBankForm, 50);
   document.getElementById('tabbar').style.display = id === 's-trip' ? 'block' : 'none';
 }
@@ -582,11 +589,11 @@ window.go = go;
 
 function goBack() {
   const prev = screenHistory.pop();
-  const cur = document.querySelector('.screen:not(.gone):not(.back)');
+  const cur = document.querySelector('.screen:not(.gone)');
   if (cur) cur.classList.add('gone');
   if (!prev) { go('s-welcome'); return; }
   const el = document.getElementById(prev);
-  el.classList.remove('gone','back');
+  el.classList.remove('gone');
   document.getElementById('tabbar').style.display = prev === 's-trip' ? 'block' : 'none';
 }
 window.goBack = goBack;
@@ -647,8 +654,9 @@ async function createTrip() {
   const others = othersRaw.split(',').map(m => m.trim()).filter(Boolean);
   if (!others.length) { toast('Tambahkan minimal 1 anggota lain'); return; }
   const members = [me, ...others];
+  if (members.some(m => !isValidMemberName(m))) { toast('Nama tidak boleh mengandung tanda kutip ( \' " )', 'var(--orange)'); return; }
   const code = genCode();
-  const tripData = { name, code, members, bills: {}, takenBy: { [me]: true }, createdAt: Date.now() };
+  const tripData = { name, code, members, bills: {}, takenBy: { [me]: true }, hostName: me, createdAt: Date.now() };
   await set(ref(db, 'trips/' + code), tripData);
   trip = tripData; myName = me;
   localStorage.setItem(LOCAL_SESSION, JSON.stringify({ code, myName: me }));
@@ -797,6 +805,7 @@ function listenBills() {
     trip.bankInfo = data.bankInfo || {};
     renderBills();
     if (document.getElementById('tab-summary').style.display !== 'none') renderSummary();
+    if (document.getElementById('tab-you').style.display !== 'none') { populateYouMembers(); }
   });
 }
 
@@ -899,6 +908,15 @@ function renderYou() {
     <div style="background:var(--surface);border-radius:14px;padding:14px;margin-bottom:10px;">
       <div class="eyebrow" style="margin-bottom:12px;">Anggota Trip</div>
       <div id="you-members-list"></div>
+      ${isHost() ? `
+      <div style="display:flex;gap:8px;margin-top:10px;align-items:flex-start;">
+        <div class="field" style="margin-bottom:0;flex:1;">
+          <input type="text" id="new-member-input" placeholder="Nama anggota baru" maxlength="20" style="font-size:14px;padding:10px 12px;">
+        </div>
+        <button class="btn btn-outline" style="width:auto;padding:10px 16px;" onclick="addMemberAsHost()">+ Tambah</button>
+      </div>
+      <div style="font-size:11px;color:var(--silver);margin-top:6px;">Kamu Host trip ini, bisa tambah/hapus anggota.</div>
+      ` : ''}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
       <button class="btn btn-outline" onclick="openAddBill(null)">+ Tambah Tagihan Baru</button>
@@ -914,21 +932,61 @@ function populateYouMembers() {
   const list = document.getElementById('you-members-list');
   if (!list) return;
   const { net } = Object.values(trip.bills||{}).length ? calcBalances() : {net:{}};
+  const host = trip.hostName || trip.members[0];
+  const amHost = isHost();
   list.innerHTML = trip.members.map(m => {
     const bankInfo = trip.bankInfo && trip.bankInfo[m];
     const n = net[m] || 0;
     const bc = n > 0.5 ? 'var(--lime)' : n < -0.5 ? 'var(--orange)' : 'var(--silver)';
-    return `<div class="member-tap" onclick="showMemberDetail('${m}')">
-      <div class="pdot" style="background:${pColor(m,trip.members)};width:10px;height:10px;"></div>
-      <div class="member-tap-info">
-        <div class="member-tap-name">${m}${m===myName?' <span style="font-size:10px;color:var(--pink);">(kamu)</span>':''}</div>
+    const canRemove = amHost && m !== host;
+    return `<div class="member-tap" style="align-items:center;">
+      <div class="pdot" style="background:${pColor(m,trip.members)};width:10px;height:10px;" onclick="showMemberDetail('${m}')"></div>
+      <div class="member-tap-info" onclick="showMemberDetail('${m}')" style="cursor:pointer;">
+        <div class="member-tap-name">${m}${m===myName?' <span style="font-size:10px;color:var(--pink);">(kamu)</span>':''}${m===host?' <span style="font-size:10px;color:var(--yellow);">(host)</span>':''}</div>
         <div class="member-tap-bank">${bankInfo ? bankInfo.bankName + ' · ' + bankInfo.bankNum : 'Belum isi rekening'}</div>
       </div>
-      <div style="font-size:12px;font-weight:700;color:${bc};">${n>0.5?'+'+fmt(n):n<-0.5?fmt(n):'Lunas'}</div>
+      <div style="font-size:12px;font-weight:700;color:${bc};" onclick="showMemberDetail('${m}')">${n>0.5?'+'+fmt(n):n<-0.5?fmt(n):'Lunas'}</div>
+      ${canRemove ? `<button onclick="event.stopPropagation();confirmRemoveMember('${m}')" style="background:none;border:none;color:var(--orange);font-size:16px;font-weight:700;padding:4px 6px;cursor:pointer;margin-left:2px;">✕</button>` : ''}
     </div>`;
   }).join('');
 }
 window.populateYouMembers = populateYouMembers;
+
+async function addMemberAsHost() {
+  const input = document.getElementById('new-member-input');
+  const name = input.value.trim();
+  if (!name) { toast('Isi nama anggota dulu'); return; }
+  if (!isValidMemberName(name)) { toast('Nama tidak boleh mengandung tanda kutip ( \' " )', 'var(--orange)'); return; }
+  if (trip.members.some(m => m.toLowerCase() === name.toLowerCase())) { toast('Nama itu sudah ada di trip'); return; }
+  trip.members.push(name);
+  await set(ref(db, 'trips/' + trip.code + '/members'), trip.members);
+  input.value = '';
+  toast('Anggota ditambahkan ✓', 'var(--lime)');
+  populateYouMembers();
+}
+window.addMemberAsHost = addMemberAsHost;
+
+function confirmRemoveMember(name) {
+  showModal(
+    `Hapus ${name}?`,
+    'Nama ini akan dihapus dari daftar anggota trip. Tagihan yang sudah tercatat atas nama mereka tidak akan terhapus.',
+    [
+      { label: 'Ya, Hapus', cls: 'btn btn-danger', fn: `hideModal();removeMemberAsHost('${name}')` },
+      { label: 'Batal', cls: 'btn btn-outline', fn: 'hideModal()' }
+    ]
+  );
+}
+window.confirmRemoveMember = confirmRemoveMember;
+
+async function removeMemberAsHost(name) {
+  trip.members = trip.members.filter(m => m !== name);
+  await set(ref(db, 'trips/' + trip.code + '/members'), trip.members);
+  await update(ref(db, 'trips/' + trip.code + '/takenBy'), { [name]: null });
+  await update(ref(db, 'trips/' + trip.code + '/pins'), { [name]: null });
+  toast('Anggota dihapus', 'var(--orange)');
+  populateYouMembers();
+}
+window.removeMemberAsHost = removeMemberAsHost;
 
 function confirmNewTrip() {
   showModal(
