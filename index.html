@@ -1,6 +1,19 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
+<script>
+  // Absolute last-resort safety net: if the Firebase module script fails
+  // to even load/execute (blocked CDN, network error, syntax error, etc),
+  // this guarantees the loading screen still disappears after a few seconds.
+  window.addEventListener('error', function () {
+    var el = document.getElementById('loading');
+    if (el) el.classList.add('hide');
+  });
+  setTimeout(function () {
+    var el = document.getElementById('loading');
+    if (el && !el.classList.contains('hide')) el.classList.add('hide');
+  }, 8000);
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1378,7 +1391,7 @@ function showMemberDetail(memberName) {
     bankHtml = `<div style="background:var(--surface);border-radius:12px;padding:16px;text-align:center;margin-bottom:10px;">
       <div style="font-size:32px;margin-bottom:8px;">🏦</div>
       <div style="font-size:14px;color:var(--silver);">${isMe ? 'Kamu belum mengisi info rekening.' : memberName + ' belum mengisi info rekening.'}</div>
-      ${isMe ? '<button class="btn btn-outline" style="margin-top:12px;" onclick="go('s-bank')">Isi Sekarang</button>' : ''}
+      ${isMe ? `<button class="btn btn-outline" style="margin-top:12px;" onclick="go('s-bank')">Isi Sekarang</button>` : ''}
     </div>`;
   }
 
@@ -1418,22 +1431,47 @@ function copyText(text, msg) {
 window.copyText = copyText;
 
 // ── Init ──
-async function init() {
-  renderHistory();
-  const saved = localStorage.getItem(LOCAL_SESSION);
-  if (saved) {
-    try {
-      const { code, myName: name } = JSON.parse(saved);
-      const snap = await get(ref(db, 'trips/' + code));
-      if (snap.exists()) {
-        trip = snap.val(); trip.code = code; myName = name;
-        document.getElementById('loading').classList.add('hide');
-        enterTrip(); return;
-      }
-    } catch(e) {}
+function hideLoading() {
+  const el = document.getElementById('loading');
+  if (el) el.classList.add('hide');
+}
+
+// Safety net: never let the loading screen stay up forever, no matter
+// what fails (blocked CDN, slow/dead Firebase, JS error, etc).
+const LOADING_TIMEOUT_MS = 6000;
+let loadingResolved = false;
+const forceHideTimer = setTimeout(() => {
+  if (!loadingResolved) {
+    loadingResolved = true;
+    hideLoading();
+    if (!document.querySelector('.screen:not(.gone)')) go('s-welcome');
   }
-  document.getElementById('loading').classList.add('hide');
-  go('s-welcome');
+}, LOADING_TIMEOUT_MS);
+
+async function init() {
+  try {
+    renderHistory();
+    const saved = localStorage.getItem(LOCAL_SESSION);
+    if (saved) {
+      try {
+        const { code, myName: name } = JSON.parse(saved);
+        const snap = await get(ref(db, 'trips/' + code));
+        if (snap.exists()) {
+          trip = snap.val(); trip.code = code; myName = name;
+          loadingResolved = true; clearTimeout(forceHideTimer);
+          hideLoading();
+          enterTrip(); return;
+        }
+      } catch(e) { /* ignore, fall through to welcome */ }
+    }
+    loadingResolved = true; clearTimeout(forceHideTimer);
+    hideLoading();
+    go('s-welcome');
+  } catch(e) {
+    loadingResolved = true; clearTimeout(forceHideTimer);
+    hideLoading();
+    go('s-welcome');
+  }
 }
 
 init();
