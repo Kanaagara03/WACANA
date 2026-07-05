@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WACANA">
+<meta name="theme-color" content="#0D0D0D">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>WACANA</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Manjari:wght@100;400;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --black:#0D0D0D;--surface:#1A1A1A;--border:#2A2A2A;
+  --pink:#FF1493;--yellow:#FFE000;--cyan:#00E5FF;
+  --lime:#C8F000;--orange:#FF4D00;--purple:#9B35E8;
+  --white:#F0EDE8;--silver:#C8C8C8;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bot:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;overflow:hidden;background:var(--black);}
+body{font-family:'Manjari',sans-serif;color:var(--white);-webkit-font-smoothing:antialiased;}
+#app{display:flex;flex-direction:column;height:100%;max-width:430px;margin:0 auto;background:var(--black);position:relative;overflow:hidden;}
+
+/* Status bar */
+.sb{height:calc(48px + var(--safe-top));background:var(--black);display:flex;align-items:flex-end;justify-content:space-between;padding:0 20px 10px;flex-shrink:0;}
+.sb-time{font-size:15px;font-weight:700;letter-spacing:-.01em;}
+.sb-icons{display:flex;gap:5px;align-items:center;font-size:12px;font-weight:600;}
+
+/* Screens */
+#screens{flex:1;overflow:hidden;position:relative;}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--black);transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s ease;-webkit-overflow-scrolling:touch;padding-bottom:20px;}
+.screen.gone{transform:translateX(100%);pointer-events:none;}
+.screen.back{transform:translateX(-6%);opacity:.5;pointer-events:none;}
+
+/* Nav */
+.nav{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 10px;background:var(--black);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.nav-title{font-size:17px;font-weight:700;color:var(--white);}
+.nav-btn{font-size:15px;font-weight:700;color:var(--pink);background:none;border:none;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:4px;}
+.nav-logo{font-size:20px;font-weight:700;color:var(--pink);letter-spacing:.02em;font-style:italic;}
+
+/* Tab bar */
+#tabbar{display:none;background:var(--black);border-top:1px solid var(--border);padding-bottom:var(--safe-bot);flex-shrink:0;}
+.tabs{display:flex;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 6px;border:none;background:none;cursor:pointer;}
+.tab svg{width:24px;height:24px;stroke:var(--border);fill:none;stroke-width:1.8;transition:stroke .15s;}
+.tab span{font-size:10px;font-weight:700;color:var(--border);letter-spacing:.06em;text-transform:uppercase;transition:color .15s;}
+.tab.on svg{stroke:var(--pink);}
+.tab.on span{color:var(--pink);}
+.tab-add svg{stroke:var(--pink);width:28px;height:28px;}
+.tab-add span{color:var(--pink);}
+
+/* Sub tabs */
+.subtabs{display:flex;border-bottom:1px solid var(--border);background:var(--black);position:sticky;top:57px;z-index:9;}
+.stab{flex:1;padding:11px;font-size:13px;font-weight:700;border:none;background:none;color:var(--silver);border-bottom:2px solid transparent;cursor:pointer;letter-spacing:.02em;}
+.stab.on{color:var(--pink);border-bottom-color:var(--pink);}
+
+/* Typography */
+.eyebrow{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--silver);}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+/* Welcome */
+.welcome-wrap{padding:0 24px 32px;}
+.welcome-hero{text-align:center;padding:56px 0 40px;}
+.wacana-logo{font-size:52px;font-weight:700;color:var(--pink);letter-spacing:.04em;font-style:italic;display:block;margin-bottom:12px;}
+.welcome-head{font-size:26px;font-weight:700;color:var(--white);line-height:1.25;margin-bottom:10px;letter-spacing:-.02em;}
+.welcome-sub{font-size:15px;color:var(--silver);line-height:1.6;}
+.divider-or{display:flex;align-items:center;gap:12px;margin:16px 0;}
+.divider-or span{font-size:12px;color:var(--silver);}
+.divider-or::before,.divider-or::after{content:'';flex:1;height:1px;background:var(--border);}
+.welcome-micro{text-align:center;font-size:12px;color:var(--silver);margin-top:12px;}
+
+/* Buttons */
+.btn{width:100%;padding:15px;border:none;border-radius:12px;font-family:'Manjari',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.01em;}
+.btn:active{transform:scale(.97);}
+.btn-pink{background:var(--pink);color:var(--black);}
+.btn-outline{background:transparent;border:1.5px solid var(--pink);color:var(--pink);}
+.btn-sm{font-size:13px;padding:9px 18px;width:auto;border-radius:8px;}
+.btn-ghost{background:none;border:none;color:var(--pink);font-size:14px;font-weight:700;cursor:pointer;font-family:'Manjari',sans-serif;}
+
+/* Cards */
+.card{background:var(--surface);border-radius:14px;padding:16px;margin-bottom:10px;}
+
+/* Inputs */
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:10px;font-weight:700;color:var(--silver);margin-bottom:6px;letter-spacing:.12em;text-transform:uppercase;}
+.field input,.field select,.field textarea{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'Manjari',sans-serif;font-size:16px;color:var(--white);background:var(--surface);outline:none;-webkit-appearance:none;appearance:none;}
+.field input:focus,.field select:focus{border-color:var(--pink);}
+.field input.code-input{font-size:32px;font-weight:700;text-align:center;letter-spacing:.2em;color:var(--yellow);border-color:var(--yellow);}
+.field input.grand-input{font-size:20px;font-weight:700;color:var(--yellow);}
+.field input.grand-input:focus{border-color:var(--yellow);}
+.field-helper{font-size:12px;color:var(--silver);margin-top:5px;line-height:1.4;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* PIN card */
+.pin-card{background:var(--surface);border:1px solid var(--pink);border-radius:16px;padding:24px;text-align:center;margin-bottom:12px;}
+.pin-big{font-size:48px;font-weight:700;color:var(--yellow);letter-spacing:.2em;padding:8px 0;display:block;}
+
+/* Bill cards */
+.bill-card{background:var(--surface);border-radius:14px;padding:14px;margin-bottom:10px;}
+.bill-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;}
+.bill-title{font-size:15px;font-weight:700;flex:1;}
+.bill-amt{font-size:15px;font-weight:700;color:var(--yellow);white-space:nowrap;}
+.bill-meta{font-size:12px;color:var(--silver);margin-bottom:7px;}
+.bill-pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px;}
+.pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:.04em;text-transform:uppercase;}
+.pill-pink{background:rgba(255,20,147,.15);color:var(--pink);}
+.pill-gray{background:var(--border);color:var(--silver);}
+.pill-purple{background:rgba(155,53,232,.2);color:var(--purple);}
+.bill-items{font-size:11px;color:var(--silver);line-height:1.8;margin-bottom:5px;}
+.bill-shared{font-size:11px;color:var(--purple);}
+.del-btn{background:none;border:none;color:var(--border);font-size:20px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;}
+.del-btn:hover{color:var(--orange);}
+
+/* Chips */
+.chip-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
+.chip{display:flex;align-items:center;gap:6px;padding:9px 10px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;color:var(--silver);background:var(--surface);user-select:none;transition:all .15s;}
+.chip.on{border-color:var(--pink);color:var(--pink);background:rgba(255,20,147,.1);}
+.pdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* Item entry */
+.item-row{display:flex;gap:6px;margin-bottom:6px;align-items:center;}
+.item-row .in{flex:1;padding:10px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:'Manjari',sans-serif;background:var(--surface);color:var(--white);outline:none;}
+.item-row .in:focus{border-color:var(--pink);}
+.item-row .in-amt{width:90px;flex:none;font-weight:700;}
+.item-del{background:none;border:none;color:var(--silver);font-size:20px;cursor:pointer;padding:0 2px;line-height:1;}
+
+/* Preview */
+.preview-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);}
+.preview-row:last-child{border-bottom:none;}
+.preview-name{font-size:13px;color:var(--silver);}
+.preview-amt{font-size:14px;font-weight:700;color:var(--white);}
+
+/* Summary */
+.big-num{font-size:40px;font-weight:700;color:var(--pink);text-align:center;padding:4px 0;}
+.big-label{font-size:11px;color:var(--silver);text-align:center;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
+.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.mini-box{background:var(--border);border-radius:10px;padding:12px;text-align:center;}
+.mini-box .ml{font-size:10px;color:var(--silver);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;}
+.mini-box .mv{font-size:14px;font-weight:700;}
+
+/* Balance rows */
+.bal-row{display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface);border-radius:10px;margin-bottom:7px;}
+.bal-info{flex:1;}
+.bal-name{font-size:14px;font-weight:700;}
+.bal-sub{font-size:11px;color:var(--silver);margin-top:1px;}
+.badge{font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;}
+.badge-lime{background:rgba(200,240,0,.15);color:var(--lime);}
+.badge-red{background:rgba(255,77,0,.15);color:var(--orange);}
+.badge-gray{background:var(--border);color:var(--silver);}
+
+/* Settle rows */
+.settle-row{display:flex;align-items:center;gap:10px;padding:12px;background:var(--surface);border-radius:10px;margin-bottom:7px;}
+.settle-names{flex:1;}
+.settle-from{font-size:14px;font-weight:700;}
+.settle-to{font-size:12px;color:var(--silver);margin-top:1px;}
+.settle-amt{font-size:16px;font-weight:700;color:var(--lime);}
+
+/* Empty */
+.empty{text-align:center;padding:52px 24px;}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:.3;}
+.empty-head{font-size:18px;font-weight:700;margin-bottom:8px;}
+.empty-sub{font-size:14px;color:var(--silver);line-height:1.6;}
+
+/* Status text */
+.status-txt{font-size:13px;color:var(--cyan);font-style:italic;min-height:20px;margin-bottom:8px;}
+
+/* Members list */
+.member-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.member-row:last-child{border-bottom:none;}
+.member-name{font-size:14px;font-weight:700;}
+.member-you{font-size:11px;color:var(--silver);margin-left:4px;}
+
+/* Section */
+.section{padding:14px 16px 0;}
+.section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+
+/* Toast */
+#toast{position:fixed;bottom:calc(90px + var(--safe-bot));left:50%;transform:translateX(-50%) translateY(16px);background:var(--surface);color:var(--white);font-size:13px;font-weight:700;padding:11px 20px;border-radius:22px;border-left:3px solid var(--pink);opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap;box-shadow:0 4px 24px rgba(0,0,0,.5);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* Loading overlay */
+#loading{position:fixed;inset:0;background:var(--black);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;transition:opacity .3s;}
+#loading.hide{opacity:0;pointer-events:none;}
+.loader-logo{font-size:44px;font-weight:700;color:var(--pink);font-style:italic;letter-spacing:.04em;}
+.dots{display:flex;gap:6px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--pink);animation:pulse 1.2s ease-in-out infinite;}
+.dot:nth-child(2){animation-delay:.2s;}
+.dot:nth-child(3){animation-delay:.4s;}
+@keyframes pulse{0%,100%{opacity:.2;transform:scale(.8);}50%{opacity:1;transform:scale(1.1);}}
+
+.scroll-pad{padding:14px 16px;}
+.sp{height:16px;}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loader-logo">WACANA</div>
+  <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+</div>
+
+<div id="app">
+  <div class="sb">
+    <span class="sb-time" id="clk">9:41</span>
+    <div class="sb-icons">
+      <span>●●●</span>
+      <span>WiFi</span>
+      <span>🔋</span>
+    </div>
+  </div>
+
+  <div id="screens">
+
+    <!-- WELCOME -->
+    <div class="screen" id="s-welcome">
+      <div class="scroll-pad">
+        <div class="welcome-hero">
+          <span class="wacana-logo">WACANA</span>
+          <div class="welcome-head">Trip bareng<br>jadi gampang.</div>
+          <div class="welcome-sub">Semua bisa catat tagihan dari HP masing-masing. Hitung otomatis, transfer selesai.</div>
+        </div>
+        <button class="btn btn-pink" onclick="go('s-create')">Buat Trip Baru</button>
+        <div class="divider-or"><span>atau</span></div>
+        <button class="btn btn-outline" onclick="go('s-join')">Gabung dengan Kode</button>
+        <div class="welcome-micro">Gratis. Tidak perlu daftar.</div>
+      </div>
+    </div>
+
+    <!-- CREATE TRIP -->
+    <div class="screen gone" id="s-create">
+      <div class="nav">
+        <button class="nav-btn" onclick="goBack()">‹ Kembali</button>
+        <div class="nav-title">Trip Baru</div>
+        <div style="width:80px;"></div>
+      </div>
+      <div class="scroll-pad">
+        <div class="field">
+          <label>Nama Trip</label>
+          <input type="text" id="c-name" placeholder="Bandung Weekend, Bali 3D2N…" maxlength="30">
+        </div>
+        <div class="field">
+          <label>Nama Kamu</label>
+          <input type="text" id="c-me" placeholder="Siapa kamu di grup ini?">
+        </div>
+        <div class="field">
+          <label>Anggota Lain (pisahkan koma)</label>
+          <input type="text" id="c-members" placeholder="Nasya, Adit, Wyatt, Amel, Adis">
+          <div class="field-helper">Kamu sudah otomatis masuk sebagai anggota pertama.</div>
+        </div>
+        <div class="sp"></div>
+        <button class="btn btn-pink" onclick="createTrip()">Buat Trip →</button>
+      </div>
+    </div>
+
+    <!-- JOIN TRIP -->
+    <div class="screen gone" id="s-join">
+      <div class="nav">
+        <button class="nav-btn" onclick="goBack()">‹ Kembali</button>
+        <div class="nav-title">Gabung Trip</div>
+        <div style="width:80px;"></div>
+      </div>
+      <div class="scroll-pad">
+        <p style="font-size:14px;color:var(--silver);margin-bottom:20px;line-height:1.6;">Minta kode 6 digit dari teman yang buat trip, lalu masukkan di sini.</p>
+        <div class="field">
+          <label>Kode Trip</label>
+          <input type="text" id="j-code" class="code-input" placeholder="ABC123" maxlength="6" oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <div class="field">
+          <label>Nama Kamu</label>
+          <input type="text" id="j-name" placeholder="Nama kamu di grup">
+        </div>
+        <div class="status-txt" id="j-status"></div>
+        <button class="btn btn-pink" onclick="joinTrip()">Gabung →</button>
+      </div>
+    </div>
+
+    <!-- PIN SHARE -->
+    <div class="screen gone" id="s-pin">
+      <div class="nav">
+        <div style="width:80px;"></div>
+        <div class="nav-title">Trip Siap! 🎉</div>
+        <div style="width:80px;"></div>
+      </div>
+      <div class="scroll-pad">
+        <div class="pin-card">
+          <div class="eyebrow" style="margin-bottom:8px;">Kode Trip</div>
+          <span class="pin-big" id="pin-display">------</span>
+          <div style="font-size:13px;color:var(--silver);margin-bottom:16px;">Share ke teman-teman supaya bisa gabung dan input tagihan dari HP mereka.</div>
+          <button class="btn btn-outline btn-sm" onclick="copyPin()">Salin Kode</button>
+        </div>
+        <div class="card">
+          <div class="eyebrow" style="margin-bottom:12px;">Anggota Trip</div>
+          <div id="pin-members"></div>
+        </div>
+        <button class="btn btn-pink" onclick="enterTrip()">Masuk ke Trip →</button>
+      </div>
+    </div>
+
+    <!-- TRIP HOME -->
+    <div class="screen gone" id="s-trip">
+      <div class="nav">
+        <div class="nav-logo">WACANA</div>
+        <div class="nav-title" id="trip-nav-title">Trip</div>
+        <button class="nav-btn" onclick="showCode()">Kode</button>
+      </div>
+      <div class="subtabs">
+        <button class="stab on" id="st-bills" onclick="switchTab('bills')">Tagihan</button>
+        <button class="stab" id="st-summary" onclick="switchTab('summary')">Ringkasan</button>
+      </div>
+      <div id="tab-bills" style="padding:12px 16px 16px;">
+        <div id="bills-list"></div>
+      </div>
+      <div id="tab-summary" style="padding:12px 16px 16px;display:none;">
+        <div id="summary-content"></div>
+      </div>
+    </div>
+
+    <!-- ADD BILL -->
+    <div class="screen gone" id="s-add">
+      <div class="nav">
+        <button class="nav-btn" onclick="goBack()" style="color:var(--silver);">Batal</button>
+        <div class="nav-title">Tambah Tagihan</div>
+        <button class="nav-btn" onclick="saveBill()">Simpan</button>
+      </div>
+      <div class="scroll-pad" id="add-form"></div>
+    </div>
+
+  </div>
+
+  <div id="tabbar">
+    <div class="tabs">
+      <button class="tab on" onclick="switchMainTab('home')" id="mtab-home">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Trip</span>
+      </button>
+      <button class="tab tab-add" onclick="openAddBill()">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span>Tambah</span>
+      </button>
+      <button class="tab" onclick="switchMainTab('you')" id="mtab-you">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span>Kamu</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getDatabase, ref, set, get, push, remove, onValue, serverTimestamp }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+// ── GANTI INI DENGAN CONFIG FIREBASE KAMU ──
+const firebaseConfig = {
+  apiKey: "AIzaSyCU-jy8gD1Y2q3Aw74jLr8siNB5A_2Dbb0",
+  authDomain: "wacana-27b15.firebaseapp.com",
+  databaseURL: "https://wacana-27b15-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "wacana-27b15",
+  storageBucket: "wacana-27b15.firebasestorage.app",
+  messagingSenderId: "310609087976",
+  appId: "1:310609087976:web:4f4e770c5008e4df2ea85d"
+};
+// ────────────────────────────────────────────
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getDatabase(firebaseApp);
+
+// ── State ──
+const COLORS = {
+  default: ['#FF1493','#FFE000','#00E5FF','#C8F000','#FF4D00','#9B35E8','#C8C8C8']
+};
+const LOCAL = 'wacana_session';
+let trip = null;
+let myName = '';
+let splitState = {};
+let unsubscribe = null;
+
+function pColor(name, members) {
+  const idx = members.indexOf(name);
+  return COLORS.default[idx % COLORS.default.length];
+}
+
+// ── Clock ──
+function tick() {
+  const n = new Date();
+  document.getElementById('clk').textContent = n.getHours() + ':' + String(n.getMinutes()).padStart(2,'0');
+}
+setInterval(tick, 10000); tick();
+
+// ── Format ──
+function fmt(n) { return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
+function genCode() { return Math.random().toString(36).substring(2,8).toUpperCase(); }
+
+// ── Screen nav ──
+let history = [];
+function go(id) {
+  const cur = document.querySelector('.screen:not(.gone):not(.back)');
+  if (cur && cur.id !== id) { cur.classList.add('back'); history.push(cur.id); }
+  document.querySelectorAll('.screen').forEach(s => { if (s.id !== id && !s.classList.contains('back')) s.classList.add('gone'); });
+  const next = document.getElementById(id);
+  next.classList.remove('gone','back');
+  document.getElementById('tabbar').style.display = id === 's-trip' ? 'block' : 'none';
+}
+window.go = go;
+
+function goBack() {
+  const prev = history.pop();
+  const cur = document.querySelector('.screen:not(.gone):not(.back)');
+  if (cur) cur.classList.add('gone');
+  if (!prev) { go('s-welcome'); return; }
+  const el = document.getElementById(prev);
+  el.classList.remove('gone','back');
+  document.getElementById('tabbar').style.display = prev === 's-trip' ? 'block' : 'none';
+}
+window.goBack = goBack;
+
+// ── Toast ──
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+window.toast = toast;
+
+// ── Create Trip ──
+async function createTrip() {
+  const name = document.getElementById('c-name').value.trim();
+  const me = document.getElementById('c-me').value.trim();
+  const othersRaw = document.getElementById('c-members').value;
+  if (!name) { toast('Isi nama trip dulu'); return; }
+  if (!me) { toast('Isi nama kamu'); return; }
+  const others = othersRaw.split(',').map(m => m.trim()).filter(Boolean);
+  const members = [me, ...others];
+  const code = genCode();
+
+  const tripData = { name, code, members, bills: {}, createdAt: Date.now() };
+  await set(ref(db, 'trips/' + code), tripData);
+
+  trip = tripData;
+  myName = me;
+  localStorage.setItem(LOCAL, JSON.stringify({ code, myName: me }));
+
+  document.getElementById('pin-display').textContent = code;
+  document.getElementById('pin-members').innerHTML = members.map(m =>
+    `<div class="member-row">
+      <div class="pdot" style="background:${pColor(m,members)}"></div>
+      <span class="member-name">${m}</span>
+      ${m === me ? '<span class="member-you">(kamu)</span>' : ''}
+    </div>`
+  ).join('');
+  go('s-pin');
+}
+window.createTrip = createTrip;
+
+// ── Join Trip ──
+async function joinTrip() {
+  const code = document.getElementById('j-code').value.trim().toUpperCase();
+  const name = document.getElementById('j-name').value.trim();
+  if (code.length < 4) { toast('Kode tidak valid'); return; }
+  if (!name) { toast('Isi nama kamu'); return; }
+
+  document.getElementById('j-status').textContent = 'Menghubungkan ke trip…';
+  const snap = await get(ref(db, 'trips/' + code));
+  if (!snap.exists()) {
+    document.getElementById('j-status').textContent = 'Kode tidak ditemukan. Coba lagi.';
+    return;
+  }
+  trip = snap.val();
+  trip.code = code;
+  myName = name;
+  if (!trip.members.includes(name)) {
+    trip.members.push(name);
+    await set(ref(db, 'trips/' + code + '/members'), trip.members);
+  }
+  localStorage.setItem(LOCAL, JSON.stringify({ code, myName: name }));
+  document.getElementById('j-status').textContent = '';
+  enterTrip();
+}
+window.joinTrip = joinTrip;
+
+// ── Enter Trip ──
+function enterTrip() {
+  document.getElementById('trip-nav-title').textContent = trip.name;
+  go('s-trip');
+  listenBills();
+  switchTab('bills');
+}
+window.enterTrip = enterTrip;
+
+// ── Listen to Firebase bills real-time ──
+function listenBills() {
+  if (unsubscribe) unsubscribe();
+  const billsRef = ref(db, 'trips/' + trip.code + '/bills');
+  unsubscribe = onValue(billsRef, snap => {
+    trip.bills = snap.val() || {};
+    renderBills();
+    if (document.getElementById('tab-summary').style.display !== 'none') renderSummary();
+  });
+}
+
+// ── Show Code ──
+function showCode() { toast('Kode Trip: ' + trip.code + ' — share ke teman!'); }
+window.showCode = showCode;
+
+function copyPin() {
+  navigator.clipboard && navigator.clipboard.writeText(trip.code).then(() => toast('Kode disalin!'));
+}
+window.copyPin = copyPin;
+
+// ── Sub tabs ──
+function switchTab(tab) {
+  document.getElementById('st-bills').classList.toggle('on', tab === 'bills');
+  document.getElementById('st-summary').classList.toggle('on', tab === 'summary');
+  document.getElementById('tab-bills').style.display = tab === 'bills' ? 'block' : 'none';
+  document.getElementById('tab-summary').style.display = tab === 'summary' ? 'block' : 'none';
+  if (tab === 'summary') renderSummary();
+}
+window.switchTab = switchTab;
+
+function switchMainTab(t) {
+  document.getElementById('mtab-home').classList.toggle('on', t === 'home');
+  document.getElementById('mtab-you').classList.toggle('on', t === 'you');
+}
+window.switchMainTab = switchMainTab;
+
+// ── Open Add Bill ──
+function openAddBill() {
+  trip.members.forEach(p => splitState[p] = true);
+  buildAddForm();
+  go('s-add');
+}
+window.openAddBill = openAddBill;
+
+// ── Build Add Form ──
+function buildAddForm() {
+  const m = trip.members;
+  let html = `
+    <div class="eyebrow" style="margin-bottom:10px;">Info Tagihan</div>
+    <div class="field">
+      <label>Deskripsi</label>
+      <input type="text" id="f-desc" placeholder="Makan malam, bensin, hotel…">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Subtotal (Rp)</label>
+        <input type="number" id="f-sub" placeholder="0" oninput="fRecalc()">
+      </div>
+      <div class="field">
+        <label>Pajak / SC (Rp)</label>
+        <input type="number" id="f-tax" placeholder="0" oninput="fRecalc()">
+      </div>
+    </div>
+    <div class="field">
+      <label>Grand Total (Rp)</label>
+      <input type="number" id="f-grand" class="grand-input" placeholder="0" oninput="fRecalc()">
+      <div class="field-helper">Isi subtotal + pajak, atau langsung isi grand total saja.</div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Dibayar Oleh</label>
+        <select id="f-payer">
+          <option value="">Pilih…</option>
+          ${m.map(n => `<option>${n}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Kategori</label>
+        <select id="f-cat">
+          <option>🍽 Makan</option><option>🚗 Transport</option>
+          <option>🏨 Hotel</option><option>🎭 Aktivitas</option>
+          <option>🛍 Belanja</option><option>📦 Lainnya</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <div class="section-head">
+        <div class="eyebrow">Dibagi ke</div>
+        <button class="btn-ghost" onclick="fToggleAll()">Semua</button>
+      </div>
+      <div class="field-helper" style="margin-bottom:8px;">Pilih siapa saja yang ikut menanggung sisa tagihan ini.</div>
+      <div class="chip-grid" id="f-chips">
+        ${m.map(n => `
+          <div class="chip on" id="fchip-${CSS.escape(n)}" onclick="fToggleChip('${n}')">
+            <div class="pdot" style="background:${pColor(n,m)}"></div>${n}
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <div class="eyebrow" style="margin-bottom:6px;">Item Personal <span style="font-size:9px;color:var(--silver);font-weight:400;text-transform:none;letter-spacing:0;">(opsional)</span></div>
+      <div class="field-helper" style="margin-bottom:10px;">Ada yang pesan khusus? Catat di sini. Sisanya otomatis dibagi rata ke yang dipilih di atas.</div>
+      <div id="f-persons">
+        ${m.map(n => `
+          <div style="margin-bottom:10px;">
+            <div class="section-head" style="margin-bottom:6px;">
+              <div style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;">
+                <div class="pdot" style="background:${pColor(n,m)}"></div>${n}
+              </div>
+              <button class="btn-ghost" style="font-size:12px;" onclick="fAddItem('${n}')">+ Item</button>
+            </div>
+            <div id="fi-${CSS.escape(n)}"></div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="card" style="border:1px solid var(--purple);margin-bottom:14px;">
+      <div class="eyebrow" style="margin-bottom:8px;">Preview Pembagian</div>
+      <div class="field-helper" style="margin-bottom:10px;">Update otomatis sesuai input di atas.</div>
+      <div id="f-preview">Isi grand total dulu.</div>
+    </div>
+    <div class="sp"></div>
+  `;
+  document.getElementById('add-form').innerHTML = html;
+}
+window.buildAddForm = buildAddForm;
+
+function fToggleChip(n) {
+  splitState[n] = !splitState[n];
+  document.getElementById('fchip-' + CSS.escape(n)).classList.toggle('on', splitState[n]);
+  fRecalc();
+}
+window.fToggleChip = fToggleChip;
+
+function fToggleAll() {
+  const allOn = trip.members.every(p => splitState[p]);
+  trip.members.forEach(p => {
+    splitState[p] = !allOn;
+    const el = document.getElementById('fchip-' + CSS.escape(p));
+    if (el) el.classList.toggle('on', !allOn);
+  });
+  fRecalc();
+}
+window.fToggleAll = fToggleAll;
+
+function fAddItem(n) {
+  const list = document.getElementById('fi-' + CSS.escape(n));
+  const div = document.createElement('div');
+  div.className = 'item-row'; div.dataset.person = n;
+  div.innerHTML = `<input class="in" type="text" placeholder="Nama item" oninput="fRecalc()">
+    <input class="in in-amt" type="number" placeholder="0" oninput="fRecalc()">
+    <button class="item-del" onclick="this.parentElement.remove();fRecalc()">×</button>`;
+  list.appendChild(div);
+}
+window.fAddItem = fAddItem;
+
+function fGetItems() {
+  const res = {}; trip.members.forEach(p => res[p] = []);
+  document.querySelectorAll('.item-row').forEach(e => {
+    const p = e.dataset.person;
+    const name = e.querySelector('.in').value.trim();
+    const amt = parseFloat(e.querySelector('.in-amt').value) || 0;
+    if (name && amt > 0) res[p].push({ name, amt });
+  });
+  return res;
+}
+
+function fRecalc() {
+  const sub = parseFloat(document.getElementById('f-sub')?.value) || 0;
+  const tax = parseFloat(document.getElementById('f-tax')?.value) || 0;
+  const grandEl = document.getElementById('f-grand');
+  if (sub || tax) grandEl.value = sub + tax || '';
+  const grand = parseFloat(grandEl?.value) || 0;
+  const items = fGetItems();
+  let pt = 0; trip.members.forEach(p => items[p].forEach(i => pt += i.amt));
+  const shared = Math.max(0, grand - pt);
+  const sw = trip.members.filter(p => splitState[p]);
+  const ph = sw.length ? shared / sw.length : 0;
+  const prev = document.getElementById('f-preview');
+  if (!grand) { prev.innerHTML = '<span style="color:var(--silver);font-size:13px;">Isi grand total dulu.</span>'; return; }
+  let html = '';
+  trip.members.forEach(p => {
+    const personal = items[p].reduce((s,i) => s + i.amt, 0);
+    const share = sw.includes(p) ? ph : 0;
+    const total = personal + share;
+    if (total > 0 || sw.includes(p)) {
+      html += `<div class="preview-row">
+        <span class="preview-name">${p}</span>
+        <span class="preview-amt">${fmt(total)}</span>
+      </div>`;
+    }
+  });
+  prev.innerHTML = html;
+}
+window.fRecalc = fRecalc;
+
+// ── Save Bill ──
+async function saveBill() {
+  const desc = document.getElementById('f-desc')?.value.trim();
+  const sub = parseFloat(document.getElementById('f-sub')?.value) || 0;
+  const tax = parseFloat(document.getElementById('f-tax')?.value) || 0;
+  const grand = parseFloat(document.getElementById('f-grand')?.value) || 0;
+  const payer = document.getElementById('f-payer')?.value;
+  const cat = document.getElementById('f-cat')?.value;
+  const items = fGetItems();
+  const sw = trip.members.filter(p => splitState[p]);
+
+  if (!desc) { toast('Isi deskripsi dulu'); return; }
+  if (!grand) { toast('Isi grand total dulu'); return; }
+  if (!payer) { toast('Pilih siapa yang bayar'); return; }
+  if (!sw.length) { toast('Pilih minimal 1 orang'); return; }
+  let pt = 0; trip.members.forEach(p => items[p].forEach(i => pt += i.amt));
+  if (pt > grand) { toast('Item personal melebihi total'); return; }
+
+  const bill = {
+    desc, subtotal: sub, tax, grand, payer, cat,
+    items, splitWith: sw,
+    addedBy: myName,
+    date: new Date().toLocaleDateString('id-ID', { day:'numeric', month:'short' }),
+    ts: Date.now()
+  };
+  await push(ref(db, 'trips/' + trip.code + '/bills'), bill);
+  toast('Tagihan disimpan!');
+  goBack();
+}
+window.saveBill = saveBill;
+
+// ── Render Bills ──
+function renderBills() {
+  const container = document.getElementById('bills-list');
+  const bills = Object.entries(trip.bills || {});
+  if (!bills.length) {
+    container.innerHTML = `<div class="empty">
+      <div class="empty-icon">🧾</div>
+      <div class="empty-head">Belum ada tagihan</div>
+      <div class="empty-sub">Tap tombol <strong>+</strong> di bawah untuk mulai catat pengeluaran pertama.</div>
+    </div>`; return;
+  }
+  bills.sort((a,b) => (b[1].ts||0) - (a[1].ts||0));
+  container.innerHTML = bills.map(([id, b]) => {
+    let pt = 0; const lines = [];
+    trip.members.forEach(p => {
+      if (b.items && b.items[p]) b.items[p].forEach(it => { pt += it.amt; lines.push(`<b>${p}</b>: ${it.name} ${fmt(it.amt)}`); });
+    });
+    const shared = Math.max(0, b.grand - pt);
+    const ph = (b.splitWith && b.splitWith.length) ? shared / b.splitWith.length : 0;
+    return `<div class="bill-card">
+      <div class="bill-top">
+        <div class="bill-title">${b.cat} ${b.desc}</div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <div class="bill-amt">${fmt(b.grand)}</div>
+          <button class="del-btn" onclick="delBill('${id}')">×</button>
+        </div>
+      </div>
+      <div class="bill-meta">${b.date} · Ditambah oleh ${b.addedBy || '?'}</div>
+      <div class="bill-pills">
+        <span class="pill pill-pink">Bayar: ${b.payer}</span>
+        <span class="pill pill-gray">÷ ${b.splitWith ? b.splitWith.length : '?'} orang</span>
+      </div>
+      ${lines.length ? `<div class="bill-items">${lines.join(' · ')}</div>` : ''}
+      <div class="bill-shared">Sisa bersama ${fmt(shared)} ÷ ${b.splitWith ? b.splitWith.length : '?'} = ${fmt(ph)}/orang</div>
+    </div>`;
+  }).join('');
+}
+
+async function delBill(id) {
+  if (!confirm('Hapus tagihan ini?')) return;
+  await remove(ref(db, 'trips/' + trip.code + '/bills/' + id));
+  toast('Tagihan dihapus');
+}
+window.delBill = delBill;
+
+// ── Balances ──
+function calcBalances() {
+  const m = trip.members;
+  const paid = {}, owes = {};
+  m.forEach(p => { paid[p] = 0; owes[p] = 0; });
+  Object.values(trip.bills || {}).forEach(b => {
+    if (paid[b.payer] !== undefined) paid[b.payer] += b.grand;
+    let pt = 0;
+    m.forEach(p => { if (b.items && b.items[p]) b.items[p].forEach(it => { owes[p] += it.amt; pt += it.amt; }); });
+    const shared = Math.max(0, b.grand - pt);
+    const ph = (b.splitWith && b.splitWith.length) ? shared / b.splitWith.length : 0;
+    (b.splitWith || []).forEach(p => { if (owes[p] !== undefined) owes[p] += ph; });
+  });
+  const net = {}; m.forEach(p => net[p] = paid[p] - owes[p]);
+  return { paid, owes, net };
+}
+
+// ── Render Summary ──
+function renderSummary() {
+  const m = trip.members;
+  const bills = Object.values(trip.bills || {});
+  const container = document.getElementById('summary-content');
+  if (!bills.length) {
+    container.innerHTML = `<div class="empty"><div class="empty-icon">📊</div><div class="empty-head">Belum ada data</div><div class="empty-sub">Tambah tagihan dulu untuk melihat ringkasan.</div></div>`;
+    return;
+  }
+  const grand = bills.reduce((s,b) => s + b.grand, 0);
+  const { paid, owes, net } = calcBalances();
+
+  // Greedy settlement
+  const bal = m.map(p => ({ p, b: net[p] }));
+  const settles = [];
+  for (let i = 0; i < 50; i++) {
+    bal.sort((a,b) => b.b - a.b);
+    const cred = bal[0], debt = bal[bal.length-1];
+    if (cred.b < 0.5 || debt.b > -0.5) break;
+    const amt = Math.min(cred.b, -debt.b);
+    settles.push({ from: debt.p, to: cred.p, amount: Math.round(amt) });
+    cred.b -= amt; debt.b += amt;
+  }
+
+  container.innerHTML = `
+    <div class="card" style="text-align:center;margin-bottom:10px;">
+      <div class="big-label">Total Pengeluaran</div>
+      <div class="big-num">${fmt(grand)}</div>
+      <div class="mini-grid">
+        <div class="mini-box"><div class="ml">Tagihan</div><div class="mv">${bills.length}</div></div>
+        <div class="mini-box"><div class="ml">Per Orang ~</div><div class="mv">${fmt(grand/m.length)}</div></div>
+      </div>
+    </div>
+
+    <div class="eyebrow" style="margin-bottom:10px;">Saldo per Orang</div>
+    ${m.map(p => {
+      const n = net[p];
+      const bc = n > 0.5 ? 'badge-lime' : n < -0.5 ? 'badge-red' : 'badge-gray';
+      const bt = n > 0.5 ? 'Dapat ' + fmt(n) : n < -0.5 ? 'Utang ' + fmt(-n) : 'Lunas';
+      return `<div class="bal-row">
+        <div class="pdot" style="background:${pColor(p,m)}"></div>
+        <div class="bal-info">
+          <div class="bal-name">${p}${p === myName ? ' <span style="font-size:10px;color:var(--silver);font-weight:400;">(kamu)</span>' : ''}</div>
+          <div class="bal-sub">Sudah setor ${fmt(paid[p])} · Harus bayar ${fmt(owes[p])}</div>
+        </div>
+        <span class="badge ${bc}">${bt}</span>
+      </div>`;
+    }).join('')}
+
+    <div class="eyebrow" style="margin:14px 0 10px;">Siapa Transfer ke Siapa</div>
+    ${settles.length ? settles.map(s => `
+      <div class="settle-row">
+        <div class="pdot" style="background:${pColor(s.from,m)}"></div>
+        <div class="settle-names">
+          <div class="settle-from">${s.from}</div>
+          <div class="settle-to">transfer ke ${s.to}</div>
+        </div>
+        <div class="pdot" style="background:${pColor(s.to,m)};margin-right:4px;"></div>
+        <div class="settle-amt">${fmt(s.amount)}</div>
+      </div>`).join('') :
+      `<div style="text-align:center;padding:20px;font-size:18px;color:var(--lime);font-weight:700;">✦ Semua sudah lunas!</div>`}
+    <div style="height:20px;"></div>
+  `;
+}
+
+// ── Init ──
+async function init() {
+  const saved = localStorage.getItem(LOCAL);
+  if (saved) {
+    const { code, myName: name } = JSON.parse(saved);
+    const snap = await get(ref(db, 'trips/' + code));
+    if (snap.exists()) {
+      trip = snap.val(); trip.code = code; myName = name;
+      document.getElementById('loading').classList.add('hide');
+      enterTrip(); return;
+    }
+  }
+  document.getElementById('loading').classList.add('hide');
+  go('s-welcome');
+}
+
+init();
+</script>
+</body>
+</html>
